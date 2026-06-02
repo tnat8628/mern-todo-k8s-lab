@@ -15,8 +15,8 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: tnat8628/mern-todo-frontend:1.0
-          imagePullPolicy: IfNotPresent
+          image: tnat8628/mern-todo-frontend:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 80
           readinessProbe:

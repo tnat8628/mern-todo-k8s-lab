@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  namespace: mern-todo
+data:
+  PORT: "8000"
+  MONGO_URI: "mongodb://mongo-service:27017/mern-todo"

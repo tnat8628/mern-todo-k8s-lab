@@ -21,3 +21,14 @@ node_modules
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Environment variables
+.env
+backend/.env
+frontend/.env
+
+# Frontend build output
+frontend/build
+
+# Kubernetes real secrets
+k8s/backend-secret.yaml

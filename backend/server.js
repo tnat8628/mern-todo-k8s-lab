@@ -28,6 +28,14 @@ mongoose.connect(process.env.MONGO_URI, {
     }
 })
 
+//health check endpoint
+app.get("/health", (req, res) => {
+    res.status(200).json({
+        status: "ok",
+        service: "backend"
+    })
+})
+
 //api endpoints
 app.use("/api/user", userRouter)
 app.use("/api/task", taskRouter)

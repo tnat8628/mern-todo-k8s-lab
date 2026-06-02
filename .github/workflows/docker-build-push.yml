@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - master
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - ".github/workflows/docker-build-push.yml"
   workflow_dispatch:
 
 env:

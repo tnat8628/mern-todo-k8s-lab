@@ -12,6 +12,8 @@ on:
 env:
   DOCKERHUB_USERNAME: tnat8628
   BACKEND_IMAGE: mern-todo-backend
+  K8S_NAMESPACE: mern-todo
+  BACKEND_DEPLOYMENT: backend
 
 jobs:
   build-backend:
@@ -40,3 +42,26 @@ jobs:
           tags: |
             ${{ env.DOCKERHUB_USERNAME }}/${{ env.BACKEND_IMAGE }}:latest
             ${{ env.DOCKERHUB_USERNAME }}/${{ env.BACKEND_IMAGE }}:${{ github.sha }}
+
+  deploy-backend:
+    name: Deploy backend to Minikube
+    runs-on: [self-hosted, linux, x64, minikube]
+    needs: build-backend
+
+    steps:
+      - name: Check Kubernetes context
+        run: |
+          kubectl config current-context
+          kubectl get nodes
+
+      - name: Restart backend deployment
+        run: |
+          kubectl rollout restart deployment/${{ env.BACKEND_DEPLOYMENT }} -n ${{ env.K8S_NAMESPACE }}
+
+      - name: Wait for backend rollout
+        run: |
+          kubectl rollout status deployment/${{ env.BACKEND_DEPLOYMENT }} -n ${{ env.K8S_NAMESPACE }} --timeout=180s
+
+      - name: Verify backend pods
+        run: |
+          kubectl get pods -n ${{ env.K8S_NAMESPACE }} -l app=backend -o wide

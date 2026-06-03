@@ -1,4 +1,4 @@
-name: Build and Push Docker Images
+name: Build and Push Backend Image
 
 on:
   push:
@@ -6,18 +6,16 @@ on:
       - master
     paths:
       - "backend/**"
-      - "frontend/**"
-      - ".github/workflows/docker-build-push.yml"
+      - ".github/workflows/backend-docker-build.yml"
   workflow_dispatch:
 
 env:
   DOCKERHUB_USERNAME: tnat8628
   BACKEND_IMAGE: mern-todo-backend
-  FRONTEND_IMAGE: mern-todo-frontend
 
 jobs:
-  build-and-push:
-    name: Build and push backend/frontend images
+  build-backend:
+    name: Build and push backend image
     runs-on: ubuntu-latest
 
     steps:
@@ -42,13 +40,3 @@ jobs:
           tags: |
             ${{ env.DOCKERHUB_USERNAME }}/${{ env.BACKEND_IMAGE }}:latest
             ${{ env.DOCKERHUB_USERNAME }}/${{ env.BACKEND_IMAGE }}:${{ github.sha }}
-
-      - name: Build and push frontend image
-        uses: docker/build-push-action@v6
-        with:
-          context: ./frontend
-          file: ./frontend/Dockerfile
-          push: true
-          tags: |
-            ${{ env.DOCKERHUB_USERNAME }}/${{ env.FRONTEND_IMAGE }}:latest
-            ${{ env.DOCKERHUB_USERNAME }}/${{ env.FRONTEND_IMAGE }}:${{ github.sha }}

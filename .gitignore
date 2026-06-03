@@ -32,3 +32,4 @@ frontend/build
 
 # Kubernetes real secrets
 k8s/backend-secret.yaml
+.github/workflows/docker-build-push.backup.yml

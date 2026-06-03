@@ -32,7 +32,7 @@ mongoose.connect(process.env.MONGO_URI, {
 app.get("/health", (req, res) => {
     res.status(200).json({
         status: "ok",
-        service: "backend"
+        service: "backend",
 	version: "ci-backend-test"
     })
 })

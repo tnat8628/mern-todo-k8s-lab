@@ -12,6 +12,8 @@ on:
 env:
   DOCKERHUB_USERNAME: tnat8628
   FRONTEND_IMAGE: mern-todo-frontend
+  K8S_NAMESPACE: mern-todo
+  FRONTEND_DEPLOYMENT: frontend
 
 jobs:
   build-frontend:
@@ -40,3 +42,26 @@ jobs:
           tags: |
             ${{ env.DOCKERHUB_USERNAME }}/${{ env.FRONTEND_IMAGE }}:latest
             ${{ env.DOCKERHUB_USERNAME }}/${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
+
+  deploy-frontend:
+    name: Deploy frontend to Minikube
+    runs-on: [self-hosted, linux, x64, minikube]
+    needs: build-frontend
+
+    steps:
+      - name: Check Kubernetes context
+        run: |
+          kubectl config current-context
+          kubectl get nodes
+
+      - name: Restart frontend deployment
+        run: |
+          kubectl rollout restart deployment/${{ env.FRONTEND_DEPLOYMENT }} -n ${{ env.K8S_NAMESPACE }}
+
+      - name: Wait for frontend rollout
+        run: |
+          kubectl rollout status deployment/${{ env.FRONTEND_DEPLOYMENT }} -n ${{ env.K8S_NAMESPACE }} --timeout=180s
+
+      - name: Verify frontend pods
+        run: |
+          kubectl get pods -n ${{ env.K8S_NAMESPACE }} -l app=frontend -o wide

@@ -10,7 +10,6 @@ on:
   workflow_dispatch:
 
 env:
-  DOCKERHUB_USERNAME: tnat8628
   BACKEND_IMAGE: mern-todo-backend
   K8S_NAMESPACE: mern-todo
   BACKEND_DEPLOYMENT: backend
@@ -33,15 +32,31 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push backend image
+      - name: Build backend image locally
         uses: docker/build-push-action@v6
         with:
           context: ./backend
           file: ./backend/Dockerfile
-          push: true
+          push: false
+          load: true
           tags: |
-            ${{ env.DOCKERHUB_USERNAME }}/${{ env.BACKEND_IMAGE }}:latest
-            ${{ env.DOCKERHUB_USERNAME }}/${{ env.BACKEND_IMAGE }}:${{ github.sha }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.BACKEND_IMAGE }}:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.BACKEND_IMAGE }}:${{ github.sha }}
+      
+      - name: Scan backend image with Trivy
+        uses: aquasecurity/trivy-action@v0.35.0
+        with:
+          image-ref: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.BACKEND_IMAGE }}:${{ github.sha }}
+          format: table
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: CRITICAL
+
+      - name: Push backend image after security scan
+        run: |
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.BACKEND_IMAGE }}:latest
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.BACKEND_IMAGE }}:${{ github.sha }}
 
   deploy-backend:
     name: Deploy backend to Minikube
@@ -54,14 +69,35 @@ jobs:
           kubectl config current-context
           kubectl get nodes
 
-      - name: Restart backend deployment
+      - name: Deploy backend image by commit SHA
         run: |
-          kubectl rollout restart deployment/${{ env.BACKEND_DEPLOYMENT }} -n ${{ env.K8S_NAMESPACE }}
+          kubectl set image deployment/${{ env.BACKEND_DEPLOYMENT }} \
+            backend=${{ secrets.DOCKERHUB_USERNAME }}/${{ env.BACKEND_IMAGE }}:${{ github.sha }} \
+            -n ${{ env.K8S_NAMESPACE }}
 
-      - name: Wait for backend rollout
+      - name: Wait for backend rollout and rollback on failure
         run: |
+          set +e
           kubectl rollout status deployment/${{ env.BACKEND_DEPLOYMENT }} -n ${{ env.K8S_NAMESPACE }} --timeout=180s
+          ROLLOUT_STATUS=$?
+          set -e
+
+          if [ $ROLLOUT_STATUS -ne 0 ]; then
+            echo "Backend rollout failed. Rolling back to previous revision..."
+
+            kubectl rollout undo deployment/${{ env.BACKEND_DEPLOYMENT }} -n ${{ env.K8S_NAMESPACE }}
+
+            echo "Waiting for rollback to complete..."
+            kubectl rollout status deployment/${{ env.BACKEND_DEPLOYMENT }} -n ${{ env.K8S_NAMESPACE }} --timeout=180s
+
+            echo "Rollback completed, but this workflow will fail because the new deployment was unsuccessful."
+            exit 1
+          fi
+
+          echo "Backend rollout completed successfully."
 
       - name: Verify backend pods
         run: |
           kubectl get pods -n ${{ env.K8S_NAMESPACE }} -l app=backend -o wide
+          kubectl get deployment/${{ env.BACKEND_DEPLOYMENT }} -n ${{ env.K8S_NAMESPACE }} -o jsonpath='{.spec.template.spec.containers[0].image}'
+          echo

@@ -10,7 +10,6 @@ on:
   workflow_dispatch:
 
 env:
-  DOCKERHUB_USERNAME: tnat8628
   FRONTEND_IMAGE: mern-todo-frontend
   K8S_NAMESPACE: mern-todo
   FRONTEND_DEPLOYMENT: frontend
@@ -40,8 +39,8 @@ jobs:
           file: ./frontend/Dockerfile
           push: true
           tags: |
-            ${{ env.DOCKERHUB_USERNAME }}/${{ env.FRONTEND_IMAGE }}:latest
-            ${{ env.DOCKERHUB_USERNAME }}/${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.FRONTEND_IMAGE }}:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
 
   deploy-frontend:
     name: Deploy frontend to Minikube
@@ -54,14 +53,35 @@ jobs:
           kubectl config current-context
           kubectl get nodes
 
-      - name: Restart frontend deployment
+      - name: Deploy frontend image by commit SHA
         run: |
-          kubectl rollout restart deployment/${{ env.FRONTEND_DEPLOYMENT }} -n ${{ env.K8S_NAMESPACE }}
+          kubectl set image deployment/${{ env.FRONTEND_DEPLOYMENT }} \
+            frontend=${{ secrets.DOCKERHUB_USERNAME }}/${{ env.FRONTEND_IMAGE }}:${{ github.sha }} \
+            -n ${{ env.K8S_NAMESPACE }}
 
-      - name: Wait for frontend rollout
+      - name: Wait for frontend rollout and rollback on failure
         run: |
+          set +e
           kubectl rollout status deployment/${{ env.FRONTEND_DEPLOYMENT }} -n ${{ env.K8S_NAMESPACE }} --timeout=180s
+          ROLLOUT_STATUS=$?
+          set -e
+
+          if [ $ROLLOUT_STATUS -ne 0 ]; then
+            echo "Frontend rollout failed. Rolling back to previous revision..."
+
+            kubectl rollout undo deployment/${{ env.FRONTEND_DEPLOYMENT }} -n ${{ env.K8S_NAMESPACE }}
+
+            echo "Waiting for rollback to complete..."
+            kubectl rollout status deployment/${{ env.FRONTEND_DEPLOYMENT }} -n ${{ env.K8S_NAMESPACE }} --timeout=180s
+
+            echo "Rollback completed, but this workflow will fail because the new deployment was unsuccessful."
+            exit 1
+          fi
+
+          echo "Frontend rollout completed successfully."
 
       - name: Verify frontend pods
         run: |
           kubectl get pods -n ${{ env.K8S_NAMESPACE }} -l app=frontend -o wide
+          kubectl get deployment/${{ env.FRONTEND_DEPLOYMENT }} -n ${{ env.K8S_NAMESPACE }} -o jsonpath='{.spec.template.spec.containers[0].image}'
+          echo

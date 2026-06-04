@@ -10,7 +10,6 @@ on:
   workflow_dispatch:
 
 env:
-  DOCKERHUB_USERNAME: tnat8628
   BACKEND_IMAGE: mern-todo-backend
   K8S_NAMESPACE: mern-todo
   BACKEND_DEPLOYMENT: backend
@@ -40,8 +39,8 @@ jobs:
           file: ./backend/Dockerfile
           push: true
           tags: |
-            ${{ env.DOCKERHUB_USERNAME }}/${{ env.BACKEND_IMAGE }}:latest
-            ${{ env.DOCKERHUB_USERNAME }}/${{ env.BACKEND_IMAGE }}:${{ github.sha }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.BACKEND_IMAGE }}:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.BACKEND_IMAGE }}:${{ github.sha }}
 
   deploy-backend:
     name: Deploy backend to Minikube

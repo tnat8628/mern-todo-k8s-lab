@@ -10,7 +10,6 @@ on:
   workflow_dispatch:
 
 env:
-  DOCKERHUB_USERNAME: tnat8628
   FRONTEND_IMAGE: mern-todo-frontend
   K8S_NAMESPACE: mern-todo
   FRONTEND_DEPLOYMENT: frontend
@@ -40,8 +39,8 @@ jobs:
           file: ./frontend/Dockerfile
           push: true
           tags: |
-            ${{ env.DOCKERHUB_USERNAME }}/${{ env.FRONTEND_IMAGE }}:latest
-            ${{ env.DOCKERHUB_USERNAME }}/${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.FRONTEND_IMAGE }}:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
 
   deploy-frontend:
     name: Deploy frontend to Minikube

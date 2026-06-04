@@ -53,9 +53,11 @@ jobs:
           kubectl config current-context
           kubectl get nodes
 
-      - name: Restart backend deployment
+      - name: Deploy backend image by commit SHA
         run: |
-          kubectl rollout restart deployment/${{ env.BACKEND_DEPLOYMENT }} -n ${{ env.K8S_NAMESPACE }}
+          kubectl set image deployment/${{ env.BACKEND_DEPLOYMENT }} \
+            backend=${{ secrets.DOCKERHUB_USERNAME }}/${{ env.BACKEND_IMAGE }}:${{ github.sha }} \
+            -n ${{ env.K8S_NAMESPACE }}
 
       - name: Wait for backend rollout
         run: |
@@ -64,3 +66,5 @@ jobs:
       - name: Verify backend pods
         run: |
           kubectl get pods -n ${{ env.K8S_NAMESPACE }} -l app=backend -o wide
+          kubectl get deployment/${{ env.BACKEND_DEPLOYMENT }} -n ${{ env.K8S_NAMESPACE }} -o jsonpath='{.spec.template.spec.containers[0].image}'
+          echo

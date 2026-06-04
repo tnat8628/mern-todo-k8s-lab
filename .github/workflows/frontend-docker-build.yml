@@ -53,9 +53,11 @@ jobs:
           kubectl config current-context
           kubectl get nodes
 
-      - name: Restart frontend deployment
+      - name: Deploy frontend image by commit SHA
         run: |
-          kubectl rollout restart deployment/${{ env.FRONTEND_DEPLOYMENT }} -n ${{ env.K8S_NAMESPACE }}
+          kubectl set image deployment/${{ env.FRONTEND_DEPLOYMENT }} \
+            frontend=${{ secrets.DOCKERHUB_USERNAME }}/${{ env.FRONTEND_IMAGE }}:${{ github.sha }} \
+            -n ${{ env.K8S_NAMESPACE }}
 
       - name: Wait for frontend rollout
         run: |
@@ -64,3 +66,5 @@ jobs:
       - name: Verify frontend pods
         run: |
           kubectl get pods -n ${{ env.K8S_NAMESPACE }} -l app=frontend -o wide
+          kubectl get deployment/${{ env.FRONTEND_DEPLOYMENT }} -n ${{ env.K8S_NAMESPACE }} -o jsonpath='{.spec.template.spec.containers[0].image}'
+          echo
